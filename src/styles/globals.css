@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-black text-gray-100 antialiased;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black;
+  }
+  
+  .btn-primary {
+    @apply btn bg-zinc-800 text-white hover:bg-zinc-700 
+           focus:ring-zinc-600;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-zinc-900 text-gray-100 hover:bg-zinc-800 
+           focus:ring-zinc-700;
+  }
+  
+  .card {
+    @apply bg-zinc-900 rounded-lg shadow-lg transition-all duration-200 
+           hover:shadow-xl border border-zinc-800;
+  }
+  
+  .input {
+    @apply bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 
+           text-gray-100 placeholder-gray-500 focus:outline-none 
+           focus:ring-2 focus:ring-zinc-700 focus:border-transparent;
+  }
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-zinc-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors;
+}
+
+/* Glass effect */
+.glass {
+  @apply bg-zinc-900/50 backdrop-blur-lg border border-zinc-800/50;
+}
+
+.container {
+  @apply max-w-7xl mx-auto;
+} 
