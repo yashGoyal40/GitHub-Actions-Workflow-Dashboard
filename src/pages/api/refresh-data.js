@@ -16,13 +16,9 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`[${new Date().toISOString()}] Manual refresh triggered for ${repositories.length} repositories`);
-    
     // Fetch fresh data from GitHub and store in DB
     const updatedData = await fetchAndStoreWorkflowRuns(repositories);
-    
-    console.log(`[${new Date().toISOString()}] Successfully refreshed ${updatedData.length} repositories`);
-    
+        
     res.status(200).json({
       message: 'Data refreshed successfully',
       data: updatedData,

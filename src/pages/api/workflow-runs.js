@@ -7,7 +7,6 @@ export default async function handler(req, res) {
 
   try {
     const workflowRuns = await getWorkflowRunsFromDB();
-    console.log('Fetched workflow runs:', workflowRuns);
     res.status(200).json(workflowRuns);
   } catch (error) {
     console.error('API Error:', error);

@@ -60,7 +60,6 @@ export default function Home({ initialWorkflowRuns, error: initialError }) {
   // Function to fetch data from MongoDB only
   const fetchFromMongoDB = async () => {
     try {
-      console.log(`[${new Date().toISOString()}] Client fetching data from MongoDB`);
       const response = await fetch('/api/initial-data', {
         headers: {
           'Accept': 'application/json',
@@ -82,7 +81,6 @@ export default function Home({ initialWorkflowRuns, error: initialError }) {
       }
       
       const currentTime = new Date().toISOString();
-      console.log(`[${currentTime}] Client received data from MongoDB for ${data.length} repositories`);
       
       // Update the data with current timestamp
       const validatedData = data.map(item => {

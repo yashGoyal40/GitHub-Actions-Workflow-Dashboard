@@ -27,6 +27,8 @@ export const fetchAndStoreWorkflowRuns = async (repositories, buildLimit = 5) =>
         const cleanRepo = repo.trim();
         if (!cleanRepo) return null;
 
+        console.log(`[${new Date().toISOString()}] Fetching latest ${buildLimit} workflows from GitHub for ${cleanRepo}`);
+        
         const response = await fetch(
           `https://api.github.com/repos/${cleanRepo}/actions/runs?per_page=${buildLimit}`,
           {
@@ -47,30 +49,37 @@ export const fetchAndStoreWorkflowRuns = async (repositories, buildLimit = 5) =>
           throw new Error('Invalid response from GitHub API');
         }
 
+        // Process only the latest 5 runs
+        const latestRuns = data.workflow_runs.slice(0, buildLimit).map(run => ({
+          id: run.id,
+          name: run.name,
+          status: run.status,
+          conclusion: run.conclusion,
+          html_url: run.html_url,
+          created_at: run.created_at,
+          updated_at: run.updated_at,
+        }));
+
         const workflowData = {
           repo: cleanRepo,
-          runs: data.workflow_runs.map(run => ({
-            id: run.id,
-            name: run.name,
-            status: run.status,
-            conclusion: run.conclusion,
-            html_url: run.html_url,
-            created_at: run.created_at,
-            updated_at: run.updated_at,
-          })),
+          runs: latestRuns,
           lastUpdated: new Date().toISOString(),
         };
 
         // Update or insert the data in MongoDB
-        await collection.updateOne(
+        const updateResult = await collection.updateOne(
           { repo: cleanRepo },
           { $set: workflowData },
           { upsert: true }
         );
 
+        if (updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0) {
+          console.log(`[${new Date().toISOString()}] Successfully updated MongoDB for ${cleanRepo}`);
+        }
+        
         return workflowData;
       } catch (error) {
-        console.error(`Error fetching data for ${repo}:`, error);
+        console.error(`[${new Date().toISOString()}] Error fetching from GitHub for ${repo}: ${error.message}`);
         // Return a valid object even if the fetch fails
         return {
           repo: repo.trim(),
@@ -83,7 +92,7 @@ export const fetchAndStoreWorkflowRuns = async (repositories, buildLimit = 5) =>
     // Filter out any null results and return
     return results.filter(Boolean);
   } catch (error) {
-    console.error('Error fetching and storing workflow runs:', error);
+    console.error(`[${new Date().toISOString()}] Error in GitHub fetch process: ${error.message}`);
     throw error;
   }
 };
