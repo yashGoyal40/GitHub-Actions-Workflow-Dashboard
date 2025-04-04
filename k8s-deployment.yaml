@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: github-actions-config
+data:
+  GITHUB_REPOSITORIES: "yashgoyal04/github-actions-dashboard"
+  NODE_ENV: "production"
+  MONGODB_URI: "mongodb://localhost:27017/github-actions-dashboard"
+  NEXT_PUBLIC_API_URL: "http://localhost:3000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-actions-secrets
+type: Opaque
+data:
+  GITHUB_TOKEN: token
+  CRON_SECRET: secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: github-actions-dashboard
+  labels:
+    app: github-actions-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: github-actions-dashboard
+  template:
+    metadata:
+      labels:
+        app: github-actions-dashboard
+    spec:
+      containers:
+      - name: app
+        image: yashgoyal04/github-actions-dashboard-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: github-actions-config
+        - secretRef:
+            name: github-actions-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        readinessProbe:
+          httpGet:
+            path: /api/ping
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      - name: mongodb
+        image: mongo:latest
+        ports:
+        - containerPort: 27017
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: mongodb-data
+          mountPath: /data/db
+        readinessProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 27017
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      volumes:
+      - name: mongodb-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: github-actions-dashboard
+spec: 
+  selector:
+    app: github-actions-dashboard
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: ClusterIP 

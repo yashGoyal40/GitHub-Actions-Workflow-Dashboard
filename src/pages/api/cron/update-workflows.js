@@ -50,12 +50,13 @@ export default async function handler(req, res) {
 
 // Start the cron job when the server starts
 if (process.env.NODE_ENV !== 'development') {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
     console.error('CRON_SECRET is not set in environment variables');
   } else {
     // Call the endpoint immediately
-    fetch('http://localhost:3000/api/cron/update-workflows', {
+    fetch(`${baseUrl}/api/cron/update-workflows`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${cronSecret}`,
@@ -67,7 +68,7 @@ if (process.env.NODE_ENV !== 'development') {
 
     // Set up the interval to call it every minute
     setInterval(() => {
-      fetch('http://localhost:3000/api/cron/update-workflows', {
+      fetch(`${baseUrl}/api/cron/update-workflows`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${cronSecret}`,
