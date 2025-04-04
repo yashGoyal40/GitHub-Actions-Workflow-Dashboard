@@ -6,7 +6,7 @@ data:
   GITHUB_REPOSITORIES: "yashgoyal04/github-actions-dashboard"
   NODE_ENV: "production"
   MONGODB_URI: "mongodb://localhost:27017/github-actions-dashboard"
-  NEXT_PUBLIC_API_URL: "http://localhost:3000"
+  NEXT_PUBLIC_API_URL: your.host.domain
 ---
 apiVersion: v1
 kind: Secret
@@ -102,3 +102,31 @@ spec:
   - port: 80
     targetPort: 3000
   type: ClusterIP 
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: github-dashboard-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/from-to-www-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: your.host.domain
+    http:
+      paths:
+      - backend:
+          service:
+            name: github-actions-dashboard
+            port:
+              number: 80
+        path: /
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - your.host.domain
+    secretName: github-dashboard-tls
