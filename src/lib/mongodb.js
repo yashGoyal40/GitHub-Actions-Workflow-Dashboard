@@ -15,6 +15,7 @@ const options = {
 
 let client;
 let clientPromise;
+let indexesEnsured = false;
 
 if (process.env.NODE_ENV === 'development') {
   // In development mode, use a global variable so that the value
@@ -33,3 +34,22 @@ if (process.env.NODE_ENV === 'development') {
 // Export a module-scoped MongoClient promise. By doing this in a
 // separate module, the client can be shared across functions.
 export default clientPromise; 
+
+// Ensure indexes once per process
+clientPromise.then(async (c) => {
+  if (indexesEnsured) return;
+  try {
+    const db = c.db("github-actions-dashboard");
+    const runs = db.collection("workflow-runs");
+    const meta = db.collection("workflow-metadata");
+    await Promise.all([
+      runs.createIndex({ repo: 1 }),
+      runs.createIndex({ lastUpdated: -1 }),
+      runs.createIndex({ "runs.status": 1 }),
+      meta.createIndex({ repo: 1 }, { unique: true }),
+    ]);
+    indexesEnsured = true;
+  } catch (e) {
+    console.error('Failed to ensure Mongo indexes:', e);
+  }
+}).catch(() => {});

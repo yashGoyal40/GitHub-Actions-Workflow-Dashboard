@@ -1,4 +1,5 @@
 import { fetchAndStoreWorkflowRuns } from '../../services/github';
+import { broadcast } from '../../lib/events';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,6 +19,14 @@ export default async function handler(req, res) {
 
     // Fetch fresh data from GitHub and store in DB
     const updatedData = await fetchAndStoreWorkflowRuns(repositories);
+
+    // Broadcast minimal updates for clients
+    if (Array.isArray(updatedData)) {
+      updatedData.forEach(item => {
+        if (!item || !item.repo) return;
+        broadcast({ type: 'repo-update', repo: item.repo, runs: item.runs || [], lastUpdated: item.lastUpdated });
+      });
+    }
         
     res.status(200).json({
       message: 'Data refreshed successfully',

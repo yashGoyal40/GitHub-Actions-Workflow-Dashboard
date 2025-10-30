@@ -1,4 +1,5 @@
 import { fetchAndStoreWorkflowRuns } from '../../../services/github';
+import { broadcast } from '../../../lib/events';
 
 // This is a cron job that runs every minute
 export default async function handler(req, res) {
@@ -21,17 +22,29 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'No repositories configured' });
     }
 
-    console.log(`[${new Date().toISOString()}] Starting GitHub data fetch for ${repositories.length} repositories`);
+    if (process.env.DEBUG_LOGS === '1') {
+      console.log(`[${new Date().toISOString()}] Starting GitHub data fetch for ${repositories.length} repositories`);
+    }
     
     // Fetch and store workflow runs from GitHub
     const results = await fetchAndStoreWorkflowRuns(repositories);
     
     // Log the results
-    results.forEach(result => {
-      if (result.runs.length > 0) {
-        console.log(`[${new Date().toISOString()}] Successfully fetched ${result.runs.length} workflows from GitHub for ${result.repo}`);
-      }
-    });
+    if (process.env.DEBUG_LOGS === '1') {
+      results.forEach(result => {
+        if (result.runs.length > 0) {
+          console.log(`[${new Date().toISOString()}] Successfully fetched ${result.runs.length} workflows from GitHub for ${result.repo}`);
+        }
+      });
+    }
+
+    // Broadcast updates
+    if (Array.isArray(results)) {
+      results.forEach(item => {
+        if (!item || !item.repo) return;
+        broadcast({ type: 'repo-update', repo: item.repo, runs: item.runs || [], lastUpdated: item.lastUpdated });
+      });
+    }
     
     res.status(200).json({ 
       message: 'GitHub data fetch completed', 
@@ -66,7 +79,8 @@ if (process.env.NODE_ENV !== 'development') {
       console.error('Failed to start cron job:', error);
     });
 
-    // Set up the interval to call it every minute
+    // Set up the interval (configurable)
+    const cronMs = Number(process.env.CRON_INTERVAL_MS) || 60000;
     setInterval(() => {
       fetch(`${baseUrl}/api/cron/update-workflows`, {
         method: 'POST',
@@ -77,6 +91,6 @@ if (process.env.NODE_ENV !== 'development') {
       }).catch(error => {
         console.error('Cron job failed:', error);
       });
-    }, 60000);
+    }, cronMs);
   }
 } 

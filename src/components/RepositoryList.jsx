@@ -79,7 +79,7 @@ const RepositoryList = ({ repositories = [] }) => {
           return (
             <div 
               key={repo} 
-              className="card overflow-hidden animate-fade-in"
+              className="card overflow-hidden animate-fade-in hover:shadow-lg/20 hover:ring-1 hover:ring-zinc-700 transition"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className="flex flex-col">
@@ -101,7 +101,7 @@ const RepositoryList = ({ repositories = [] }) => {
                     </div>
                   </div>
                   <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-400 bg-zinc-800 px-3 py-1 rounded-full">
+                    <span className="text-sm text-gray-300 bg-zinc-800/70 px-3 py-1 rounded-full border border-zinc-700">
                       {runs.length} workflow{runs.length !== 1 ? 's' : ''}
                     </span>
                     <svg
@@ -123,7 +123,7 @@ const RepositoryList = ({ repositories = [] }) => {
                 </button>
                 {expandedRepo === repo && (
                   <div className="px-6 py-4 bg-zinc-900/50 border-t border-zinc-800">
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {runs.map((run) => {
                         if (!run || typeof run !== 'object' || !run.id) {
                           console.error('Invalid workflow run data:', run);

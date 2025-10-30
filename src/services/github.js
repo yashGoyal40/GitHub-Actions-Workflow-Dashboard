@@ -20,24 +20,45 @@ export const fetchAndStoreWorkflowRuns = async (repositories, buildLimit = 5) =>
     const client = await clientPromise;
     const db = client.db("github-actions-dashboard");
     const collection = db.collection("workflow-runs");
+    const meta = db.collection("workflow-metadata");
 
+    const effectiveLimit = Number(process.env.BUILD_LIMIT) || buildLimit;
     const results = await Promise.all(repositories.map(async (repo) => {
       try {
         // Clean up the repository name
         const cleanRepo = repo.trim();
         if (!cleanRepo) return null;
 
-        console.log(`[${new Date().toISOString()}] Fetching latest ${buildLimit} workflows from GitHub for ${cleanRepo}`);
+        if (process.env.DEBUG_LOGS === '1') {
+          console.log(`[${new Date().toISOString()}] Fetching latest ${effectiveLimit} workflows from GitHub for ${cleanRepo}`);
+        }
         
+        // Conditional request using stored ETag when available
+        const metaDoc = await meta.findOne({ repo: cleanRepo });
+        const headers = {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        };
+        if (metaDoc?.etag) headers['If-None-Match'] = metaDoc.etag;
+
         const response = await fetch(
-          `https://api.github.com/repos/${cleanRepo}/actions/runs?per_page=${buildLimit}`,
-          {
-            headers: {
-              Authorization: `token ${token}`,
-              Accept: 'application/vnd.github.v3+json',
-            },
-          }
+          `https://api.github.com/repos/${cleanRepo}/actions/runs?per_page=${effectiveLimit}`,
+          { headers }
         );
+
+        if (response.status === 304) {
+          // Not modified: return existing DB data to avoid write
+          const existing = await collection.findOne({ repo: cleanRepo });
+          return existing ? {
+            repo: existing.repo,
+            runs: Array.isArray(existing.runs) ? existing.runs.slice(0, effectiveLimit) : [],
+            lastUpdated: existing.lastUpdated || new Date().toISOString(),
+          } : {
+            repo: cleanRepo,
+            runs: [],
+            lastUpdated: new Date().toISOString(),
+          };
+        }
 
         if (!response.ok) {
           throw new Error(`GitHub API error: ${response.statusText}`);
@@ -50,7 +71,7 @@ export const fetchAndStoreWorkflowRuns = async (repositories, buildLimit = 5) =>
         }
 
         // Process only the latest 5 runs
-        const latestRuns = data.workflow_runs.slice(0, buildLimit).map(run => ({
+        const latestRuns = data.workflow_runs.slice(0, effectiveLimit).map(run => ({
           id: run.id,
           name: run.name,
           status: run.status,
@@ -66,15 +87,38 @@ export const fetchAndStoreWorkflowRuns = async (repositories, buildLimit = 5) =>
           lastUpdated: new Date().toISOString(),
         };
 
-        // Update or insert the data in MongoDB
+        // Update metadata ETag if present
+        const etag = response.headers.get('etag');
+        if (etag) {
+          await meta.updateOne(
+            { repo: cleanRepo },
+            { $set: { repo: cleanRepo, etag, updatedAt: new Date().toISOString() } },
+            { upsert: true }
+          );
+        }
+
+        // Update or insert the data in MongoDB (only if changed)
+        const prev = await collection.findOne({ repo: cleanRepo });
+        const prevSignature = JSON.stringify(prev?.runs || []);
+        const nextSignature = JSON.stringify(workflowData.runs || []);
+        if (prevSignature === nextSignature) {
+          return {
+            repo: cleanRepo,
+            runs: prev?.runs || [],
+            lastUpdated: prev?.lastUpdated || new Date().toISOString(),
+          };
+        }
+
         const updateResult = await collection.updateOne(
           { repo: cleanRepo },
           { $set: workflowData },
           { upsert: true }
         );
 
-        if (updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0) {
-          console.log(`[${new Date().toISOString()}] Successfully updated MongoDB for ${cleanRepo}`);
+        if (process.env.DEBUG_LOGS === '1') {
+          if (updateResult.modifiedCount > 0 || updateResult.upsertedCount > 0) {
+            console.log(`[${new Date().toISOString()}] Successfully updated MongoDB for ${cleanRepo}`);
+          }
         }
         
         return workflowData;
@@ -105,10 +149,12 @@ export const getWorkflowRunsFromDB = async () => {
     
     const results = await collection.find({}).toArray();
     
-    // Log the last update time for each repository
-    results.forEach(item => {
-      console.log(`[${new Date().toISOString()}] Repository ${item.repo} last updated: ${item.lastUpdated}`);
-    });
+    // Optional verbose logging
+    if (process.env.DEBUG_LOGS === '1') {
+      results.forEach(item => {
+        console.log(`[${new Date().toISOString()}] Repository ${item.repo} last updated: ${item.lastUpdated}`);
+      });
+    }
     
     // Ensure all required fields are present
     return results.map(item => ({
