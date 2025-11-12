@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import WorkflowCard from './WorkflowCard';
 import { formatDate } from '../utils/dateUtils';
 
-const RepositoryList = ({ repositories = [] }) => {
+const RepositoryList = ({ repositories = [], externalQuery }) => {
   const [expandedRepo, setExpandedRepo] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -12,14 +12,15 @@ const RepositoryList = ({ repositories = [] }) => {
 
   // Filter repositories based on search query
   const filteredRepositories = useMemo(() => {
-    if (!searchQuery.trim()) return repositories;
+    const querySource = typeof externalQuery === 'string' ? externalQuery : searchQuery;
+    if (!querySource?.trim()) return repositories;
     
-    const query = searchQuery.toLowerCase().trim();
+    const query = querySource.toLowerCase().trim();
     return repositories.filter(repoData => {
       if (!repoData || !repoData.repo) return false;
       return repoData.repo.toLowerCase().includes(query);
     });
-  }, [repositories, searchQuery]);
+  }, [repositories, searchQuery, externalQuery]);
 
   if (!Array.isArray(repositories)) {
     console.error('Invalid repositories prop:', repositories);
@@ -41,7 +42,8 @@ const RepositoryList = ({ repositories = [] }) => {
   return (
     <div className="flex flex-col gap-4">
       {/* Search Input */}
-      <div className="relative">
+      {/* Local search input visible only on small screens; header controls on md+ */}
+      <div className="relative md:hidden">
         <input
           type="text"
           placeholder="Search repositories..."
@@ -62,7 +64,7 @@ const RepositoryList = ({ repositories = [] }) => {
       </div>
 
       {/* Repository List */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3">
         {filteredRepositories.map((repoData, index) => {
           if (!repoData || typeof repoData !== 'object') {
             console.error('Invalid repository data:', repoData);
@@ -79,7 +81,7 @@ const RepositoryList = ({ repositories = [] }) => {
           return (
             <div 
               key={repo} 
-              className="card overflow-hidden animate-fade-in hover:shadow-lg/20 hover:ring-1 hover:ring-zinc-700 transition"
+              className="card overflow-hidden animate-fade-in hover:shadow-lg/20 hover:ring-1 hover:ring-zinc-700 transition w-full"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <div className="flex flex-col">
@@ -94,16 +96,13 @@ const RepositoryList = ({ repositories = [] }) => {
                       </svg>
                     </div>
                     <div className="text-left">
-                      <span className="text-gray-100 font-medium block truncate max-w-[200px]">{repo}</span>
-                      <span className="text-sm text-gray-400">
+                      <span className="text-gray-100 font-medium block break-words">{repo}</span>
+                      <span className="text-sm text-gray-400 block mt-1">
                         Last updated: {formatDate(lastUpdated)}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-300 bg-zinc-800/70 px-3 py-1 rounded-full border border-zinc-700">
-                      {runs.length} workflow{runs.length !== 1 ? 's' : ''}
-                    </span>
                     <svg
                       className={`w-5 h-5 text-gray-400 transform transition-transform duration-200 ${
                         expandedRepo === repo ? 'rotate-180' : ''
@@ -123,13 +122,13 @@ const RepositoryList = ({ repositories = [] }) => {
                 </button>
                 {expandedRepo === repo && (
                   <div className="px-6 py-4 bg-zinc-900/50 border-t border-zinc-800">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-3">
                       {runs.map((run) => {
                         if (!run || typeof run !== 'object' || !run.id) {
                           console.error('Invalid workflow run data:', run);
                           return null;
                         }
-                        return <WorkflowCard key={run.id} run={run} />;
+                        return <WorkflowCard key={run.id} run={run} showStatus={false} />;
                       })}
                     </div>
                   </div>

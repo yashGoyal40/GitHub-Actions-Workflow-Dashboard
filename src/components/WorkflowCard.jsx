@@ -2,7 +2,7 @@ import React from 'react';
 import { getWorkflowRunColor, getDisplayStatus } from '../utils/statusUtils';
 import { formatDate } from '../utils/dateUtils';
 
-const WorkflowCard = ({ run }) => {
+const WorkflowCard = ({ run, showStatus = true }) => {
   if (!run || typeof run !== 'object') {
     console.error('Invalid run prop:', run);
     return null;
@@ -32,11 +32,6 @@ const WorkflowCard = ({ run }) => {
       <div className="flex justify-between items-center">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-gray-400 group-hover:text-zinc-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
             <div className="min-w-0">
               <span className="font-medium text-gray-100 group-hover:text-zinc-300 transition-colors truncate block">
                 {name}
@@ -60,15 +55,17 @@ const WorkflowCard = ({ run }) => {
             </svg>
           </div>
         </div>
-        <span
-          className="px-3 py-1 rounded-full text-xs font-medium ml-4 flex-shrink-0 shadow-sm"
-          style={{
-            backgroundColor: statusColor,
-            color: 'white',
-          }}
-        >
-          {displayStatus}
-        </span>
+        {showStatus && (
+          <span
+            className="px-3 py-1 rounded-full text-xs font-medium ml-4 flex-shrink-0 shadow-sm"
+            style={{
+              backgroundColor: statusColor,
+              color: 'white',
+            }}
+          >
+            {displayStatus}
+          </span>
+        )}
       </div>
     </a>
   );
